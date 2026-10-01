@@ -1,23 +1,25 @@
-
 name: Import Hasibati ZIP and Build APK
 
 on:
   workflow_dispatch:
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
-  update:
+  build:
     runs-on: ubuntu-latest
+
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Extract and update project
+      - name: Extract Hasibati 4.1
         run: |
           set -e
+
           ZIP_FILE="$(find . -maxdepth 1 -type f -iname '*.zip' -print -quit)"
+
           if [ -z "$ZIP_FILE" ]; then
             echo "Project ZIP not found"
             exit 1
@@ -25,15 +27,10 @@ jobs:
 
           mkdir -p /tmp/hasibati-update
           unzip -q "$ZIP_FILE" -d /tmp/hasibati-update
-          cp -a /tmp/hasibati-update/. .
-          rm -f "$ZIP_FILE"
-          rm -f .github/workflows/build.yml
 
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add -A
-          git commit -m "Update Hasibati Android 4.1"
-          git push origin "HEAD:${GITHUB_REF_NAME}"
+          cp -a /tmp/hasibati-update/. .
+
+          echo "Hasibati 4.1 project extracted successfully."
 
       - name: Set up Java
         uses: actions/setup-java@v4
@@ -44,8 +41,11 @@ jobs:
       - name: Set up Android SDK
         uses: android-actions/setup-android@v3
 
-      - name: Install SDK packages
-        run: sdkmanager "platform-tools" "platforms;android-35" "build-tools;35.0.0"
+      - name: Install Android SDK packages
+        run: |
+          sdkmanager "platform-tools" \
+            "platforms;android-35" \
+            "build-tools;35.0.0"
 
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v4
@@ -53,7 +53,8 @@ jobs:
           gradle-version: '8.7'
 
       - name: Build APK
-        run: gradle --no-daemon --stacktrace assembleDebug
+        run: |
+          gradle --no-daemon --stacktrace assembleDebug
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
